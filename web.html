@@ -3,101 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF 取得 LINE User ID</title>
+    <title>LIFF 用戶資訊範例</title>
+    <script src="https://static.line-scdn.net/liff/sdk/2.22.0/liff.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f2f5; margin: 0; padding: 20px; box-sizing: border-box; }
-        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; }
-        h1 { color: #333; margin-bottom: 20px; }
-        p { color: #555; font-size: 1.1em; line-height: 1.6; }
-        #userIdDisplay {
-            margin-top: 25px;
-            padding: 15px;
-            background-color: #e6ffe6; /* Light green background */
-            border: 1px solid #00b900; /* LINE green border */
-            border-radius: 6px;
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #008000; /* Darker green text */
-            word-break: break-all; /* 防止長 ID 超出容器 */
-        }
-        #statusMessage {
-            margin-top: 20px;
-            color: #777;
-            font-style: italic;
-        }
-        .loading-spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #00b900;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .info-box { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; background-color: #f9f9f9; }
+        .error-message { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>我的 LINE User ID</h1>
-        <div id="statusMessage">正在載入 LIFF 應用程式並取得使用者資訊...</div>
-        <div class="loading-spinner"></div>
-        <p>您的 LINE User ID 是：</p>
-        <div id="userIdDisplay">載入中...</div>
+    <h1>LIFF 用戶資訊</h1>
+
+    <div class="info-box">
+        <p><strong>LIFF 初始化狀態:</strong> <span id="liffStatus">載入中...</span></p>
+        <p><strong>是否登入:</strong> <span id="isLoggedIn"></span></p>
     </div>
 
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/sdk/v2/liff.js"></script>
+    <div class="info-box">
+        <h2>用戶個人資料</h2>
+        <p><strong>User ID:</strong> <span id="userId">未取得</span></p>
+        <p><strong>顯示名稱:</strong> <span id="displayName">未取得</span></p>
+        <p><strong>頭像 URL:</strong> <span id="pictureUrl">未取得</span></p>
+        <img id="profilePicture" src="" alt="用戶頭像" style="max-width: 100px; border-radius: 50%; margin-top: 10px; display: none;">
+    </div>
+
+    <div class="info-box">
+        <h2>LIFF Token 資訊 (若已登入)</h2>
+        <p><strong>ID Token:</strong> <span id="idToken">未取得</span></p>
+        <p><strong>Access Token:</strong> <span id="accessToken">未取得</span></p>
+    </div>
+
+    <div class="info-box">
+        <h2>其他資訊</h2>
+        <p><strong>OS:</strong> <span id="os">未取得</span></p>
+        <p><strong>語言:</strong> <span id="language">未取得</span></p>
+        <p><strong>LIFF 版本:</strong> <span id="liffVersion">未取得</span></p>
+        <p><strong>LINE 版本:</strong> <span id="lineVersion">未取得</span></p>
+    </div>
+
+    <button id="loginButton" style="display: none; padding: 10px 20px; font-size: 16px; cursor: pointer;" onclick="liffLogin()">登入 LINE</button>
+    <button id="logoutButton" style="display: none; padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;" onclick="liffLogout()">登出 LIFF</button>
+    <button id="closeWindowButton" style="display: none; padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;" onclick="liffCloseWindow()">關閉 LIFF 視窗</button>
+
+
     <script>
-        // 設定你的 LIFF ID
-        // *** 重要：請將 'YOUR_LIFF_ID' 替換成你在 LINE Developers Console 取得的 LIFF ID ***
+        // 在 LINE Developers Console 中註冊的 LIFF ID
+        // **請務必替換為你自己的 LIFF ID**
         const LIFF_ID = '2007683798-qyWZR2ep';
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const userIdDisplay = document.getElementById('userIdDisplay');
-            const statusMessage = document.getElementById('statusMessage');
-            const loadingSpinner = document.querySelector('.loading-spinner');
-
-            async function initializeLiff() {
-                try {
-                    await liff.init({
-                        liffId: LIFF_ID
-                    });
-                    statusMessage.textContent = 'LIFF 應用程式已初始化。';
-                    loadingSpinner.style.display = 'none';
-
-                    if (!liff.isLoggedIn()) {
-                        // 如果使用者未登入，引導登入 (此時會跳轉到 LINE 登入頁面)
-                        statusMessage.textContent = '偵測到未登入，將引導至 LINE 登入頁面...';
-                        liff.login(); // 預設會導回當前 LIFF URL
-                    } else {
-                        // 如果已登入，取得 User Profile
-                        const profile = await liff.getProfile();
-                        userIdDisplay.textContent = profile.userId;
-                        statusMessage.textContent = `成功取得使用者資訊。歡迎您，${profile.displayName}！`;
-
-                        // 你也可以在這裡獲取其他資訊，例如：
-                        // const displayName = profile.displayName;
-                        // const pictureUrl = profile.pictureUrl;
-                        // const statusMessageText = profile.statusMessage;
-
-                        // console.log('User ID:', profile.userId);
-                        // console.log('Display Name:', displayName);
-                        // console.log('Picture URL:', pictureUrl);
-                        // console.log('Status Message:', statusMessageText);
-                    }
-                } catch (err) {
-                    console.error('LIFF 初始化失敗或獲取資訊失敗:', err);
-                    userIdDisplay.textContent = '錯誤：無法取得 User ID。';
-                    statusMessage.textContent = `LIFF 錯誤：${err.message || '未知錯誤'}`;
-                    loadingSpinner.style.display = 'none';
-                }
-            }
-
+        // 頁面載入時初始化 LIFF
+        window.onload = function() {
             initializeLiff();
-        });
+        };
+
+        async function initializeLiff() {
+            try {
+                // 2. 初始化 LIFF SDK
+                await liff.init({
+                    liffId: LIFF_ID
+                });
+                document.getElementById('liffStatus').textContent = '成功';
+                console.log("LIFF initialized successfully.");
+
+                // 檢查 LIFF 是否在 LINE 內部瀏覽器運行
+                if (!liff.isInClient()) {
+                    console.log("不在 LINE 內部瀏覽器中執行。");
+                    // 顯示登入按鈕，如果不是在 LINE 內部瀏覽器中，則需要手動登入
+                    document.getElementById('loginButton').style.display = 'block';
+                } else {
+                    console.log("在 LINE 內部瀏覽器中執行。");
+                    document.getElementById('closeWindowButton').style.display = 'block';
+                }
+
+                // 檢查用戶是否已登入
+                if (liff.isLoggedIn()) {
+                    document.getElementById('isLoggedIn').textContent = '是';
+                    document.getElementById('loginButton').style.display = 'none'; // 隱藏登入按鈕
+                    document.getElementById('logoutButton').style.display = 'block'; // 顯示登出按鈕
+                    getLiffProfile(); // 取得用戶個人資料
+                    getLiffAccessToken(); // 取得 Access Token
+                    getLiffIdToken(); // 取得 ID Token (如果 scope 包含 openid)
+                } else {
+                    document.getElementById('isLoggedIn').textContent = '否';
+                    document.getElementById('logoutButton').style.display = 'none'; // 隱藏登出按鈕
+                    console.log("用戶未登入 LIFF。");
+                }
+
+                // 取得其他 LIFF 環境資訊
+                document.getElementById('os').textContent = liff.getOS();
+                document.getElementById('language').textContent = liff.getLanguage();
+                document.getElementById('liffVersion').textContent = liff.getVersion();
+                document.getElementById('lineVersion').textContent = liff.getLineVersion();
+
+            } catch (err) {
+                console.error("LIFF initialization failed:", err);
+                document.getElementById('liffStatus').textContent = `失敗: ${err.message}`;
+                document.getElementById('liffStatus').classList.add('error-message');
+            }
+        }
+
+        // 3. 取得用戶個人資料
+        async function getLiffProfile() {
+            try {
+                const profile = await liff.getProfile();
+                document.getElementById('userId').textContent = profile.userId;
+                document.getElementById('displayName').textContent = profile.displayName;
+                document.getElementById('pictureUrl').textContent = profile.pictureUrl || '無';
+                if (profile.pictureUrl) {
+                    document.getElementById('profilePicture').src = profile.pictureUrl;
+                    document.getElementById('profilePicture').style.display = 'block';
+                } else {
+                     document.getElementById('profilePicture').style.display = 'none';
+                }
+                console.log("用戶個人資料:", profile);
+            } catch (err) {
+                console.error("取得用戶個人資料失敗:", err);
+                document.getElementById('userId').textContent = `錯誤: ${err.message}`;
+                document.getElementById('userId').classList.add('error-message');
+            }
+        }
+
+        // 4. 取得 Access Token (需要 LIFF Channel 權限設定中勾選 "issue access token")
+        function getLiffAccessToken() {
+            if (liff.getAccessToken()) {
+                document.getElementById('accessToken').textContent = liff.getAccessToken();
+                console.log("Access Token:", liff.getAccessToken());
+            } else {
+                document.getElementById('accessToken').textContent = '未取得 (可能未授權或無此權限)';
+            }
+        }
+
+        // 5. 取得 ID Token (需要 LIFF Channel 權限設定中勾選 "openid" Scope)
+        // ID Token 包含 user ID, display name, picture URL 等基本資訊
+        function getLiffIdToken() {
+            if (liff.getIDToken()) {
+                document.getElementById('idToken').textContent = liff.getIDToken();
+                console.log("ID Token:", liff.getIDToken());
+                // 你可以進一步解析 ID Token (JWT) 來取得更多資訊，但這通常在後端進行
+                // 例如：const decodedIdToken = liff.getDecodedIDToken();
+                // console.log("Decoded ID Token:", decodedIdToken);
+            } else {
+                document.getElementById('idToken').textContent = '未取得 (可能未授權 openid scope)';
+            }
+        }
+
+        // 6. 登入 LIFF
+        function liffLogin() {
+            // 如果用戶沒有登入，將用戶導向 LINE 登入頁面
+            // preLoginPath 可選，登入成功後會跳回此路徑
+            liff.login({ redirectUri: window.location.href });
+        }
+
+        // 7. 登出 LIFF
+        function liffLogout() {
+            liff.logout();
+            // 登出後刷新頁面以反映登出狀態
+            window.location.reload();
+        }
+
+        // 8. 關閉 LIFF 視窗 (僅在 LINE 內部瀏覽器中有效)
+        function liffCloseWindow() {
+            if (liff.isInClient()) {
+                liff.closeWindow();
+            } else {
+                alert('此功能只能在 LINE 應用程式內執行。');
+            }
+        }
     </script>
 </body>
 </html>
