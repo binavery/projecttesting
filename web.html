@@ -171,6 +171,49 @@
         }
     </script>
 
+    // 10. 轉出USER資料
+    <script>
+        async function sendDataToWebhook(userId, displayName) {
+            const n8nWebhookUrl = "https://projectboy-n8n-free.hf.space/webhook/form"; // **重要：替換為你在 n8n 複製的 Webhook URL**
+
+            const dataPayload = {
+                userId: userId,
+                displayName: displayName
+            };
+
+            try {
+                // 將 JavaScript 物件轉換為 JSON 格式的字串
+                const jsonString = JSON.stringify(dataPayload);
+                console.log('發送的 JSON 字串:', jsonString);
+
+                // 發送 POST 請求到 n8n Webhook
+                const response = await fetch(n8nWebhookUrl, {
+                    method: 'POST', // 指定 HTTP 方法為 POST
+                    headers: {
+                        'Content-Type': 'application/json' // 告知伺服器請求體是 JSON 格式
+                        // 如果 n8n Webhook 設定了 Basic Auth，需要添加 'Authorization' header:
+                        // 'Authorization': 'Basic ' + btoa('你的用戶名:你的密碼')
+                    },
+                    body: jsonString // 將 JSON 字串作為請求體發送
+                });
+
+                if (!response.ok) {
+                    // 如果響應狀態碼不是 2xx (例如 404, 500)，則拋出錯誤
+                    const errorText = await response.text(); // 嘗試獲取錯誤響應的內容
+                    throw new Error(`HTTP 錯誤！狀態碼: ${response.status}, 訊息: ${errorText}`);
+                }
+
+                // 成功發送後，可以根據 n8n 的回覆來處理
+                const responseData = await response.json(); // 假設 n8n 會回傳 JSON
+                console.log('資料已成功發送到 n8n，回覆:', responseData);
+
+                alert('意見已成功送出！'); // 給使用者成功提示
+            } catch (error) {
+                console.error('發送資料到 n8n 時發生錯誤:', error);
+                alert('送出失敗，請稍後再試。'); // 給使用者失敗提示
+            }
+        }
+    </script>
     
 </body>
 </html>
